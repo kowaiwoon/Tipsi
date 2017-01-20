@@ -1,0 +1,29 @@
+//
+//  RemoveCellarWineReader.h
+//  WineWiz
+//
+//  Created by Amad Khilji on 11/28/11.
+//  Copyright 2011 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+@protocol RemoveCellarWineDelegate <NSObject>
+
+-(void)removeCellarWineSuccessful:(NSString*)message;
+-(void)removeCellarWineFailed:(NSString*)error;
+
+@end
+
+@interface RemoveCellarWineReader : NSObject {
+    
+    NSURLConnection     *urlConnection;
+    NSMutableData       *urlData;
+}
+
+@property (nonatomic, assign) id<RemoveCellarWineDelegate>      delegate;
+
+-(void)requestRemoveCellarWine:(NSString*)userID WineID:(NSString*)wineID Delegate:(id<RemoveCellarWineDelegate>)removeDelegate;
+-(void)parseData:(NSString*)responseData;
+
+@end

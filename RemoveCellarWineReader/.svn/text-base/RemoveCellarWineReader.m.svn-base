@@ -1,0 +1,33 @@
+//
+//  RemoveCellarWineReader.m
+//  WineWiz
+//
+//  Created by Amad Khilji on 11/28/11.
+//  Copyright 2011 __MyCompanyName__. All rights reserved.
+//
+
+#import "RemoveCellarWineReader.h"
+
+@implementation RemoveCellarWineReader
+
+@synthesize delegate;
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        // Initialization code here.
+    }
+    
+    return self;
+}
+
+-(void)requestRemoveCellarWine:(NSString*)userID WineID:(NSString*)wineID Delegate:(id<RemoveCellarWineDelegate>)removeDelegate {
+    
+}
+
+-(void)parseData:(NSString*)responseData {
+    
+}
+
+@end

@@ -1,0 +1,29 @@
+//
+//  RateWineReader.h
+//  WineWiz
+//
+//  Created by Amad Khilji on 11/25/11.
+//  Copyright 2011 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+@protocol RateWineDelegate <NSObject>
+
+-(void)wineRatingSuccessful:(NSString*)message;
+-(void)wineRatingFailed:(NSString *)error;
+
+@end
+
+@interface RateWineReader : NSObject {
+    
+    NSURLConnection     *urlConnection;
+    NSMutableData       *urlData;
+}
+
+@property (nonatomic, assign) id<RateWineDelegate>  delegate;
+
+-(void)requestWineRating:(NSDictionary*)ratingData Delegate:(id<RateWineDelegate>)ratingDelegate;
+-(void)parseData:(NSString*)responseData;
+
+@end

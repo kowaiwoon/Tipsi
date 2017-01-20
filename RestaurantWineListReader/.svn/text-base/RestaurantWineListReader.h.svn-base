@@ -1,0 +1,30 @@
+//
+//  RestaurantWineListReader.h
+//  WineWiz
+//
+//  Created by Amad Khilji on 11/25/11.
+//  Copyright 2011 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+@protocol RestaurantWineDelegate <NSObject>
+
+-(void)restaurantWineSuccessful:(NSArray*)winelist;
+-(void)restaurantWineFailed:(NSString*)error;
+
+@end
+
+@interface RestaurantWineListReader : NSObject {
+    
+    NSURLConnection *urlConnection;
+    NSMutableData   *urlData;
+}
+
+@property (nonatomic, assign) id<RestaurantWineDelegate>    delegate;
+
++(RestaurantWineListReader*)sharedInstance;
+-(void)requestRestaurantWine:(NSString*)foursquareID Delegate:(id<RestaurantWineDelegate>)restaurantDelegate;
+-(void)parseData:(NSString*)responseData;
+
+@end

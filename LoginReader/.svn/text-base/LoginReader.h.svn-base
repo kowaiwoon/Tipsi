@@ -1,0 +1,29 @@
+//
+//  LoginReader.h
+//  WineWiz
+//
+//  Created by Amad Khilji on 12/16/11.
+//  Copyright 2011 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+@protocol LoginDelegate <NSObject>
+
+-(void)loginSuccessful;
+-(void)loginFailure:(NSString*)error;
+
+@end
+
+@interface LoginReader : NSObject {
+    NSURLConnection     *urlConnection;
+    NSMutableData       *urlData;
+}
+
+@property (nonatomic, assign) id<LoginDelegate>      delegate;
+
++(LoginReader*)sharedInstance;
+-(void)requestLogin:(NSString*)username Password:(NSString*)password Delegate:(id<LoginDelegate>)loginDelegate;
+-(void)parseData:(NSString*)responseData;
+
+@end

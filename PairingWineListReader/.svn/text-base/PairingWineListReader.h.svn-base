@@ -1,0 +1,29 @@
+//
+//  PairingWineListReader.h
+//  WineWiz
+//
+//  Created by Amad Khilji on 11/25/11.
+//  Copyright 2011 __MyCompanyName__. All rights reserved.
+//
+
+#import <Foundation/Foundation.h>
+
+@protocol PairingWineDelegate <NSObject>
+
+-(void)winePairingSuccessful:(NSArray*)winelist;
+-(void)winePairingFailed:(NSString*)error;
+
+@end
+
+@interface PairingWineListReader : NSObject {
+
+    NSURLConnection *urlConnection;
+    NSMutableData   *urlData;
+}
+
+@property (nonatomic, assign) id<PairingWineDelegate>   delegate;
+
+-(void)requestWinePairing:(NSArray*)mealtype WineStyle:(NSArray*)winestyle FoursquareID:(NSString*)foursquareID WineDetails:(BOOL)isDetailRequired Delegate:(id<PairingWineDelegate>)pairingDelegate;
+-(void)parseData:(NSString*)responseData;
+
+@end

@@ -1,0 +1,33 @@
+//
+//  CellarRatingReader.m
+//  WineWiz
+//
+//  Created by Amad Khilji on 11/28/11.
+//  Copyright 2011 __MyCompanyName__. All rights reserved.
+//
+
+#import "CellarRatingReader.h"
+
+@implementation CellarRatingReader
+
+@synthesize delegate;
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        // Initialization code here.
+    }
+    
+    return self;
+}
+
+-(void)requestCellarRating:(NSString*)userID Details:(BOOL)isDetailRequired Delegate:(id<CellarRatingDelegate>)ratingDelegate {
+    
+}
+
+-(void)parseData:(NSString*)responseData {
+    
+}
+
+@end

@@ -1,0 +1,107 @@
+//
+//  UploadPhotosReader.m
+//  WineWiz
+//
+//  Created by Waqas Qureshi on 11/25/11.
+//  Copyright 2011 __MyCompanyName__. All rights reserved.
+//
+
+#import "UploadPhotosReader.h"
+
+@implementation UploadPhotosReader
+
+@synthesize delegate;
+
+static UploadPhotosReader *singletonInstance;
++(UploadPhotosReader*)sharedInstance {
+    if (!singletonInstance) {
+        singletonInstance = [[UploadPhotosReader alloc] init];
+    }
+    return singletonInstance;
+}
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        // Initialization code here.
+        urlData = [[NSMutableData alloc] init];
+    }
+    
+    return self;
+}
+
+-(void)requestUploadPhotos:(NSDictionary*)uploadData Delegate:(id<UploadPhotosDelegate>)uploadDelegate {
+    self.delegate = uploadDelegate;
+    NSString *urlString = [NSString stringWithFormat:@"%@",@"http://clients.appsgenii.com/winewiz/index.php/wine/upload_wine_list/"];
+    SBJSON *jsonObj = [[SBJSON alloc] init];
+    NSString *parameters = [jsonObj stringWithObject:uploadData];
+//    NSLog(@"JSON Parameters: %@", parameters);
+    NSURL *url = [[NSURL alloc] initWithString:urlString];
+    NSMutableURLRequest *urlRequest = [NSMutableURLRequest requestWithURL:url];
+    NSData *postData = [parameters dataUsingEncoding:NSUTF8StringEncoding];
+    NSString *postLength = [NSString stringWithFormat:@"%d", [postData length]];
+    [urlRequest setValue:postLength forHTTPHeaderField:@"Content-Length"];
+    [urlRequest setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
+    [urlRequest setHTTPBody:postData];
+    [urlRequest setHTTPMethod:@"POST"];
+    if (urlConnection) {
+        [urlConnection cancel];
+        urlConnection = nil;
+    }
+    urlConnection = [[NSURLConnection alloc] initWithRequest:urlRequest delegate:self startImmediately:YES];
+    
+    [url release];
+
+    
+}
+
+-(void)parseData:(NSString*)responseData {
+    SBJSON *parser = [[SBJSON alloc] init];
+	NSMutableDictionary *data = [parser objectWithString:responseData error:nil];
+    NSLog(@"%@",data);
+    if (data && [[data objectForKey:@"code"] intValue] == 404) {
+        if (delegate && [delegate respondsToSelector:@selector(uploadPhotosFailed:)]) {
+            [delegate uploadPhotosFailed:[data objectForKey:@"message"]];
+            delegate = nil;
+        }
+    }else if (data && [[data objectForKey:@"code"] intValue] == 200)
+    {
+        if (delegate && [delegate respondsToSelector:@selector(uploadPhotosSuccessful:)]) {
+            [delegate uploadPhotosSuccessful:[data objectForKey:@"message"]];
+            delegate = nil;
+        }
+    }
+    else {
+        if (delegate && [delegate respondsToSelector:@selector(uploadPhotosFailed:)]) {
+            [delegate uploadPhotosFailed:@"Unable to connect to server, Check your internet connection and try again."];
+            delegate = nil;
+        }
+        
+    }
+
+}
+
+#pragma NSURLConnectionDelegate Methods
+
+- (void)connection:(NSURLConnection *)connection didReceiveData:(NSData *)data {
+    [urlData appendData:data];
+}
+
+-(void)connection:(NSURLConnection *)connection didFailWithError:(NSError *)error
+{
+	connection = nil;
+    if (delegate && [delegate respondsToSelector:@selector(uploadPhotosFailed:)]) {
+        [delegate uploadPhotosFailed:@"Unable to connect to server, Check your internet connection and try again."];
+        delegate = nil;
+    }    
+}
+
+-(void)connectionDidFinishLoading:(NSURLConnection *)connection
+{
+    NSString *json_string = [[NSString alloc] initWithData:urlData encoding:NSASCIIStringEncoding];
+	NSLog(@"%@",json_string);
+    [self parseData:json_string];
+}
+
+
+@end

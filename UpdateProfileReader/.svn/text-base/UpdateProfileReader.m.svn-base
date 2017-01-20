@@ -1,0 +1,104 @@
+//
+//  UpdateProfileReader.m
+//  WineWiz
+//
+//  Created by Amad Khilji on 11/28/11.
+//  Copyright 2011 __MyCompanyName__. All rights reserved.
+//
+
+#import "UpdateProfileReader.h"
+#import "WWConstants.h"
+#import "JSON.h"
+
+@implementation UpdateProfileReader
+
+@synthesize delegate;
+
+static UpdateProfileReader *singletonInstance;
++(UpdateProfileReader*)sharedInstance {
+    @synchronized ( [UpdateProfileReader class])
+    {
+        if (!singletonInstance) {
+            singletonInstance = [[UpdateProfileReader alloc] init];
+        }
+    }
+    return singletonInstance;
+}
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        // Initialization code here.
+        urlData = [[NSMutableData alloc] init];
+    }
+    
+    return self;
+}
+
+-(void)requestUpdateProfile:(NSDictionary*)userInfo Delegate:(id<UpdateProfileDelegate>)profileDelegate {
+    self.delegate = profileDelegate;
+    [urlData setLength:0];
+    NSString *urlString = [NSString stringWithFormat:@"%@user/update_profile/",TIPSI_API];
+    SBJSON *jsonObj = [[SBJSON alloc] init];
+    NSString *parameters = [jsonObj stringWithObject:userInfo];
+    NSLog(@"JSON Parameters: %@", parameters);
+    NSURL *url = [[NSURL alloc] initWithString:urlString];
+    NSMutableURLRequest *urlRequest = [NSMutableURLRequest requestWithURL:url];
+    NSData *postData = [parameters dataUsingEncoding:NSUTF8StringEncoding];
+    NSString *postLength = [NSString stringWithFormat:@"%d", [postData length]];
+    [urlRequest setValue:postLength forHTTPHeaderField:@"Content-Length"];
+    [urlRequest setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
+    [urlRequest setHTTPBody:postData];
+    [urlRequest setHTTPMethod:@"POST"];
+    if (urlConnection) {
+        [urlConnection cancel];
+        urlConnection = nil;
+    }
+    urlConnection = [[NSURLConnection alloc] initWithRequest:urlRequest delegate:self startImmediately:YES];
+    
+    [url release];
+
+}
+
+-(void)parseData:(NSString*)responseData {
+    SBJSON *parser = [[SBJSON alloc] init];
+	NSMutableDictionary *data = [parser objectWithString:responseData error:nil];
+    if ([[data objectForKey:@"code"] intValue] == 200) {
+        if (delegate && [delegate respondsToSelector:@selector(updateProfileSuccessful:)]) {
+            [delegate updateProfileSuccessful:[data objectForKey:@"message"]];
+            delegate = nil;
+        }
+        
+    }else
+    {
+        if (delegate && [delegate respondsToSelector:@selector(updateProfileFailed:)]) {
+            [delegate updateProfileFailed:[data objectForKey:@"message"]];
+            delegate = nil;
+        }
+    }
+}
+
+#pragma NSURLConnectionDelegate Methods
+
+- (void)connection:(NSURLConnection *)connection didReceiveData:(NSData *)data {
+    [urlData appendData:data];
+}
+
+-(void)connection:(NSURLConnection *)connection didFailWithError:(NSError *)error
+{
+	connection = nil;
+    if (delegate && [delegate respondsToSelector:@selector(updateProfileFailed:)]) {
+        [delegate updateProfileFailed:@"Unable to connect to server, Check your internet connection and try again."];
+        delegate = nil;
+    }    
+}
+
+-(void)connectionDidFinishLoading:(NSURLConnection *)connection
+{
+    NSString *json_string = [[NSString alloc] initWithData:urlData encoding:NSASCIIStringEncoding];
+	NSLog(@"%@",json_string);
+    [self parseData:json_string];
+}
+
+@end

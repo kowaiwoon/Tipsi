@@ -1,0 +1,120 @@
+//
+//  GeoLocationReader.m
+//  WineWiz
+//
+//  Created by Amad Khilji on 12/22/11.
+//  Copyright 2011 __MyCompanyName__. All rights reserved.
+//
+
+#import "GeoLocationReader.h"
+#import "JSON.h"
+#import "Foursquare2.h"
+
+@implementation GeoLocationReader
+
+@synthesize delegate;
+
+static GeoLocationReader *singletonInstance;
++(GeoLocationReader*)sharedInstance {
+    @synchronized ( [GeoLocationReader class])
+    {
+        if (!singletonInstance) {
+            singletonInstance = [[GeoLocationReader alloc] init];
+        }
+    }
+    return singletonInstance; 
+}
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        // Initialization code here.
+        urlData = [[NSMutableData alloc] init];
+    }
+    
+    return self;
+}
+
+-(void)requestGeoCoordinates:(NSString*)address Delegate:(id<GeoLocationDelegate>)geoDelegate {
+    self.delegate = geoDelegate;
+    [urlData setLength:0];
+    NSString *urlString = [NSString stringWithFormat:@"http://maps.googleapis.com/maps/api/geocode/json?address=%@&sensor=true", [self getJSONAddress:address]];
+    NSURL *url = [[NSURL alloc] initWithString:urlString];
+    NSMutableURLRequest *urlRequest = [NSMutableURLRequest requestWithURL:url];
+    [urlRequest setHTTPMethod:@"GET"];
+    if (urlConnection) {
+        [urlConnection cancel];
+        urlConnection = nil;
+    }
+    urlConnection = [[NSURLConnection alloc] initWithRequest:urlRequest delegate:self startImmediately:YES];
+    
+    [url release];
+}
+
+-(void)parseData:(NSString*)responseString {
+    SBJSON *parser = [[SBJSON alloc] init];
+	NSMutableDictionary *data = [parser objectWithString:responseString error:nil];
+    if ([[data objectForKey:@"status"] isEqualToString:@"OK"]) {
+        NSString *latitude = [NSString stringWithFormat:@"%@", [[[[[data objectForKey:@"results"] objectAtIndex:0] objectForKey:@"geometry"] objectForKey:@"location"] objectForKey:@"lat"]];
+        NSString *longitude = [NSString stringWithFormat:@"%@", [[[[[data objectForKey:@"results"] objectAtIndex:0] objectForKey:@"geometry"] objectForKey:@"location"] objectForKey:@"lng"]];
+        [self requestFoursquareVenue:latitude Longitude:longitude];
+    }
+    else {
+        if (delegate && [delegate respondsToSelector:@selector(geoLocationFailure:)]) {
+            [delegate geoLocationFailure:@"Unable to connect to server, Check your internet connection and try again."];
+            delegate = nil;
+        }
+    }
+}
+
+-(NSString*)getJSONAddress:(NSString*)address {
+    NSMutableString *jsonString = [[NSMutableString alloc] initWithString:address];
+    NSRange range;
+    range.length = jsonString.length;
+    range.location = 0;
+    [jsonString replaceOccurrencesOfString:@" " withString:@"+" options:NSCaseInsensitiveSearch range:range];
+    return jsonString;
+}
+
+-(void)requestFoursquareVenue:(NSString*)latitude Longitude:(NSString*)longitude {
+
+    [Foursquare2 searchVenuesNearByLatitude:latitude longitude:longitude accuracyLL:@"10" altitude:@"0" accuracyAlt:@"10" query:@"restaurant" limit:@"50" intent:@"browse" callback:^(BOOL success, id result){
+        if (success) {
+            if (delegate && [delegate respondsToSelector:@selector(geoLocationSuccessful:)]) {
+                [delegate geoLocationSuccessful:[[result objectForKey:@"response"] objectForKey:@"venues"]];
+                delegate = nil;
+            }
+        }
+        else {
+            if (delegate && [delegate respondsToSelector:@selector(geoLocationFailure:)]) {
+                [delegate geoLocationFailure:@"Unable to connect to server, Check your internet connection and try again."];
+                delegate = nil;
+            }
+        }
+    }];
+}
+
+#pragma NSURLConnectionDelegate Methods
+
+- (void)connection:(NSURLConnection *)connection didReceiveData:(NSData *)data {
+    [urlData appendData:data];
+}
+
+-(void)connection:(NSURLConnection *)connection didFailWithError:(NSError *)error
+{
+    connection = nil;
+    if (delegate && [delegate respondsToSelector:@selector(geoLocationFailure:)]) {
+        [delegate geoLocationFailure:@"Unable to connect to server, Check your internet connection and try again."];
+        delegate = nil;
+    }    
+}
+
+-(void)connectionDidFinishLoading:(NSURLConnection *)connection
+{
+    NSString *json_string = [[NSString alloc] initWithData:urlData encoding:NSASCIIStringEncoding];
+	NSLog(@"%@",json_string);
+    [self parseData:json_string];
+}
+
+@end

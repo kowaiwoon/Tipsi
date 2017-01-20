@@ -1,0 +1,136 @@
+//
+//  AccountExistReader.m
+//  WineWiz
+//
+//  Created by Amad Khilji on 12/17/11.
+//  Copyright 2011 __MyCompanyName__. All rights reserved.
+//
+
+#import "AccountExistReader.h"
+#import "WWConstants.h"
+#import "JSON.h"
+
+@implementation AccountExistReader
+
+@synthesize delegate;
+
+static AccountExistReader *singletonInstance;
++(AccountExistReader*)sharedInstance {
+    @synchronized ( [AccountExistReader class])
+    {
+        if (!singletonInstance) {
+            singletonInstance = [[AccountExistReader alloc] init];
+        }
+    }
+    return singletonInstance; 
+}
+
+- (id)init
+{
+    self = [super init];
+    if (self) {
+        // Initialization code here.
+        urlData = [[NSMutableData alloc] init];
+    }
+    
+    return self;
+}
+
+-(void)requestAccountExist:(NSDictionary*)userInfo Delegate:(id<AccountExistDelegate>)accountDelegate {
+    self.delegate = accountDelegate;
+    userData = [[NSDictionary alloc] initWithDictionary:userInfo];
+    [urlData setLength:0];
+    NSString *urlString = [NSString stringWithFormat:@"%@user/account_existed/",TIPSI_API];
+    SBJSON *jsonObj = [[SBJSON alloc] init];
+    NSString *parameters = [jsonObj stringWithObject:[NSDictionary dictionaryWithObject:[userInfo objectForKey:@"email_address"] forKey:@"email_address"]];
+    NSLog(@"JSON Parameters: %@", parameters);
+    NSURL *url = [[NSURL alloc] initWithString:urlString];
+    NSMutableURLRequest *urlRequest = [NSMutableURLRequest requestWithURL:url];
+    NSData *postData = [parameters dataUsingEncoding:NSUTF8StringEncoding];
+    NSString *postLength = [NSString stringWithFormat:@"%d", [postData length]];
+    [urlRequest setValue:postLength forHTTPHeaderField:@"Content-Length"];
+    [urlRequest setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
+    [urlRequest setHTTPBody:postData];
+    [urlRequest setHTTPMethod:@"POST"];
+    if (urlConnection) {
+        [urlConnection cancel];
+        urlConnection = nil;
+    }
+    urlConnection = [[NSURLConnection alloc] initWithRequest:urlRequest delegate:self startImmediately:YES];
+    
+    [url release];
+}
+
+-(void)parseData:(NSString*)responseData {
+    SBJSON *parser = [[SBJSON alloc] init];
+	NSMutableDictionary *data = [parser objectWithString:responseData error:nil];
+    if ([[data objectForKey:@"code"] intValue] == 200) {
+        if ([[data objectForKey:@"message"] isEqualToString:@"User does not exist"]) {
+            if (delegate && [delegate respondsToSelector:@selector(accountExistFailure:)]) {
+                NSLog(@"hello i m here");
+                [[SignUpReader sharedInstance] requestSignUp:userData Delegate:self];
+            }
+        }
+        else {
+            if (delegate && [delegate respondsToSelector:@selector(accountExistFailure:)]) {
+                [delegate accountExistFailure:@"Unable to connect to server, Check your internet connection and try again."];
+                delegate = nil;
+            }
+        }
+        
+    }else if ([[data allKeys] count] > 1)
+    {
+        if (delegate && [delegate respondsToSelector:@selector(accountExistSuccessful)]) {
+            [globalInstance createUserInfo:data];
+            globalInstance.isLogin = YES;
+            [delegate accountExistSuccessful];
+            delegate = nil;
+        }
+    }
+    else {
+        if (delegate && [delegate respondsToSelector:@selector(accountExistFailure:)]) {
+            [delegate accountExistFailure:@"Unable to connect to server, Check your internet connection and try again."];
+            delegate = nil;
+        }
+    }
+}
+
+#pragma NSURLConnectionDelegate Methods
+
+- (void)connection:(NSURLConnection *)connection didReceiveData:(NSData *)data {
+    [urlData appendData:data];
+}
+
+-(void)connection:(NSURLConnection *)connection didFailWithError:(NSError *)error
+{
+	connection = nil;
+    if (delegate && [delegate respondsToSelector:@selector(accountExistFailure)]) {
+        [delegate accountExistFailure:@"Unable to connect to server, Check your internet connection and try again."];
+        delegate = nil;
+    }    
+}
+
+-(void)connectionDidFinishLoading:(NSURLConnection *)connection
+{
+    NSString *json_string = [[NSString alloc] initWithData:urlData encoding:NSASCIIStringEncoding];
+	NSLog(@"%@",json_string);
+    [self parseData:json_string];
+}
+
+#pragma SignUpDelegate Methods
+
+-(void)signUpSuccessful:(NSString*)message {
+    if (delegate && [delegate respondsToSelector:@selector(accountExistSuccessful)]) {
+        [delegate accountExistSuccessful];
+        delegate = nil;
+    }
+}
+
+-(void)signUpFailure:(NSString*)error {
+    if (delegate && [delegate respondsToSelector:@selector(accountExistFailure:)]) {
+        [delegate accountExistFailure:@"Unable to connect to server, Check your internet connection and try again."];
+        delegate = nil;
+    }
+}
+
+@end
